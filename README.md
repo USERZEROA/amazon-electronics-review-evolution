@@ -73,6 +73,8 @@ Average review length was fairly stable from 2018 through 2021 and then increase
 | 2021 | 201.8 |
 | 2022 | 231.4 |
 
+![Average review length by year](figures/review_length_by_year.png)
+
 Looking month by month shows more detail. Average review length was about 211 characters in January 2022, rose gradually during the year, reached about 250 characters in October, and peaked at about 271 characters in November. It then remained around the mid-240s to low-250s through March 2023.
 
 ![Monthly review length](figures/monthly_review_length.png)
