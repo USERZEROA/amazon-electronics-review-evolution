@@ -1,5 +1,7 @@
 # Amazon Electronics Review Trends Around the Rise of Generative AI
 
+[![Tests](https://github.com/USERZEROA/amazon-electronics-review-evolution/actions/workflows/tests.yml/badge.svg)](https://github.com/USERZEROA/amazon-electronics-review-evolution/actions/workflows/tests.yml)
+
 ## Project Goal
 
 This project explores how Amazon Electronics reviews changed over time, with a closer look at the period around late 2022 when generative AI started becoming widely available. I was mainly interested in whether there was a noticeable change in review length around this period and whether other factors in the data could help explain the pattern.
@@ -91,7 +93,7 @@ This suggests that part of the increase in overall review length came from a cha
 
 I used Polars LazyFrame for the full dataset because it allowed me to work with the large Parquet file without immediately loading every row into memory. I also compared Pandas and Polars on the same group-by operation using 5 million rows.
 
-To make the timing less dependent on a single run, I first ran a warm-up and then timed each implementation five times. On my machine, the median runtime was about 0.098 seconds for Pandas and 0.030 seconds for Polars.
+To make the timing less dependent on a single run, I first ran a warm-up and then timed each implementation five times. On my machine, Pandas took about 0.09 to 0.10 seconds and Polars about 0.03 seconds for this operation.
 
 Polars was faster in this particular test, although this is only one operation on one machine and should not be interpreted as showing that Polars is always faster than Pandas.
 
@@ -107,6 +109,26 @@ The model reached about 91.4% accuracy on the test set. For negative reviews, pr
 
 The model also gives a simple way to see what it learned from the text. Some of the words with the strongest positive weights were `great`, `love`, `perfect`, `amazing`, `easy`, and `excellent`. Some of the strongest negative words were `not`, `useless`, `poor`, `waste`, `terrible`, and `disappointed`. These words were not manually labeled as positive or negative. The model learned their relationships with the star-rating labels from the training data.
 
+## Testing
+
+The project includes automated tests for the main data analysis workflow. The tests cover rating cleaning, feature engineering, yearly and monthly aggregation, verified and non-verified review comparison, and an empty-result edge case.
+
+A small integration test also checks the main analysis pipeline from reading a Parquet file through data cleaning, feature creation, and aggregation. The tests use small synthetic datasets instead of the full Amazon Reviews dataset, so they can run quickly without requiring the large local data files.
+
+To run the tests locally:
+
+```bash
+python -m pytest -v
+```
+
+The current test suite contains seven tests. Six are unit tests for individual parts of the analysis, and one is an integration test for the main data-processing workflow. All seven tests pass successfully.
+
+## Continuous Integration
+
+GitHub Actions automatically runs the full test suite on every push and pull request. The workflow creates a clean Python environment, installs the dependencies from `requirements.txt`, and runs the complete pytest suite.
+
+The workflow is stored in `.github/workflows/tests.yml`. The CI status badge at the top of this README shows the current result of the GitHub Actions workflow.
+
 ## Limitations
 
 The main limitation is that this analysis cannot determine whether generative AI caused any of the changes in review behavior. Review length had already started increasing before the end of November 2022, and several other things in the data were changing at the same time, including the proportion of verified purchases.
@@ -115,6 +137,38 @@ The dataset itself also has a coverage limitation. The Amazon Reviews'23 authors
 
 Finally, review length is a very simple text measure. A longer review does not mean that it was written by AI, that it is higher quality, or that it is more useful. The results only show changes in observable review patterns around this period.
 
-## Project Files
+## Repository Structure
 
-`analysis.py` contains the main analysis, Pandas and Polars comparison, visualizations, and machine learning experiment. `preprocess.py` converts the original JSONL data into Parquet and creates the text sample used for machine learning. The `figures` folder contains the generated plots, and `notebooks/rust_vs_python_intro.ipynb` contains the Rust exercises for the second part of the assignment.
+```text
+amazon-electronics-review-evolution/
+├── .github/
+│   └── workflows/
+│       └── tests.yml
+├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── README.md
+├── figures/
+│   ├── confusion_matrix.png
+│   ├── monthly_review_length.png
+│   ├── review_length_by_year.png
+│   └── verified_review_length.png
+├── notebooks/
+│   └── rust_vs_python_intro.ipynb
+├── tests/
+│   ├── test_analysis.py
+│   └── test_system.py
+├── .gitignore
+├── analysis.py
+├── preprocess.py
+├── README.md
+└── requirements.txt
+```
+
+The large files inside `data/raw` and `data/processed` are stored locally and excluded from Git through `.gitignore`.
+
+`analysis.py` contains the main analysis, Pandas and Polars comparison, visualizations, and machine learning experiment. `preprocess.py` converts the original JSONL data into Parquet and creates the text sample used for machine learning.
+
+The `tests` folder contains the six unit tests and one integration test used to check the main analysis workflow. The GitHub Actions workflow in `.github/workflows/tests.yml` automatically runs those tests whenever changes are pushed to the repository.
+
+The `figures` folder contains the generated plots, and `notebooks/rust_vs_python_intro.ipynb` contains the Rust exercises from the previous part of the project.
