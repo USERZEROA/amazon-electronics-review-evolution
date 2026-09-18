@@ -181,7 +181,83 @@ def get_verified_comparison(
 
 
 # ============================================================
-# 4. Main Analysis
+# 4. Machine Learning Function
+# ============================================================
+
+def run_sentiment_model(
+    ml_df,
+    test_size=0.2,
+    random_state=42,
+    max_features=10_000,
+    min_df=5,
+):
+    ml_df = ml_df.dropna(
+        subset=["text"]
+    )
+
+    ml_df = ml_df[
+        ml_df["text"].str.strip() != ""
+    ]
+
+    X = ml_df["text"]
+
+    y = (
+        ml_df["is_positive"]
+        .astype(int)
+    )
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=test_size,
+        random_state=random_state,
+        stratify=y,
+    )
+
+    vectorizer = TfidfVectorizer(
+        max_features=max_features,
+        min_df=min_df,
+    )
+
+    X_train_tfidf = vectorizer.fit_transform(
+        X_train
+    )
+
+    X_test_tfidf = vectorizer.transform(
+        X_test
+    )
+
+    model = LogisticRegression(
+        max_iter=500,
+        class_weight="balanced",
+    )
+
+    model.fit(
+        X_train_tfidf,
+        y_train
+    )
+
+    predictions = model.predict(
+        X_test_tfidf
+    )
+
+    accuracy = accuracy_score(
+        y_test,
+        predictions
+    )
+
+    return {
+        "data": ml_df,
+        "vectorizer": vectorizer,
+        "model": model,
+        "y_test": y_test,
+        "predictions": predictions,
+        "accuracy": accuracy,
+    }
+
+
+# ============================================================
+# 5. Main Analysis
 # ============================================================
 
 def main():
@@ -593,13 +669,17 @@ def main():
         ],
     )
 
-    ml_df = ml_df.dropna(
-        subset=["text"]
+    result = run_sentiment_model(
+        ml_df
     )
 
-    ml_df = ml_df[
-        ml_df["text"].str.strip() != ""
-    ]
+    ml_df = result["data"]
+    vectorizer = result["vectorizer"]
+    model = result["model"]
+    y_test = result["y_test"]
+    predictions = result["predictions"]
+    accuracy = result["accuracy"]
+
 
     print("ML rows:", len(ml_df))
 
@@ -611,60 +691,10 @@ def main():
     )
 
 
-    X = ml_df["text"]
-
-    y = (
-        ml_df["is_positive"]
-        .astype(int)
-    )
-
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.2,
-        random_state=42,
-        stratify=y,
-    )
-
-
-    vectorizer = TfidfVectorizer(
-        max_features=10_000,
-        min_df=5,
-    )
-
-    X_train_tfidf = vectorizer.fit_transform(
-        X_train
-    )
-
-    X_test_tfidf = vectorizer.transform(
-        X_test
-    )
-
-
-    model = LogisticRegression(
-        max_iter=500,
-        class_weight="balanced",
-    )
-
-    model.fit(
-        X_train_tfidf,
-        y_train
-    )
-
-
-    predictions = model.predict(
-        X_test_tfidf
-    )
-
-
     print("\nAccuracy:")
 
     print(
-        accuracy_score(
-            y_test,
-            predictions
-        )
+        accuracy
     )
 
 

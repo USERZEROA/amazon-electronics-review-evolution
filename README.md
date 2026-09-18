@@ -111,7 +111,9 @@ The model also gives a simple way to see what it learned from the text. Some of 
 
 ## Testing
 
-The project includes automated tests for the main data analysis workflow. The tests cover rating cleaning, feature engineering, yearly and monthly aggregation, verified and non-verified review comparison, and an empty-result edge case.
+The project includes automated tests for the main data analysis workflow. The tests cover rating cleaning, feature engineering, yearly and monthly aggregation, verified and non-verified review comparison, machine learning training and prediction, and an empty-result edge case.
+
+The machine learning unit test uses a small labeled text dataset to check the TF-IDF and Logistic Regression workflow, including model training, prediction, and evaluation.
 
 A small integration test also checks the main analysis pipeline from reading a Parquet file through data cleaning, feature creation, and aggregation. The tests use small synthetic datasets instead of the full Amazon Reviews dataset, so they can run quickly without requiring the large local data files.
 
@@ -121,7 +123,7 @@ To run the tests locally:
 python -m pytest -v
 ```
 
-The current test suite contains seven tests. Six are unit tests for individual parts of the analysis, and one is an integration test for the main data-processing workflow. All seven tests pass successfully.
+The current test suite contains eight tests. Seven are unit tests for individual parts of the analysis, including the machine learning workflow, and one is an integration test for the main data-processing workflow.
 
 ## Continuous Integration
 
@@ -157,6 +159,7 @@ amazon-electronics-review-evolution/
 │   └── rust_vs_python_intro.ipynb
 ├── tests/
 │   ├── test_analysis.py
+│   ├── test_ml.py
 │   └── test_system.py
 ├── .gitignore
 ├── analysis.py
@@ -169,6 +172,6 @@ The large files inside `data/raw` and `data/processed` are stored locally and ex
 
 `analysis.py` contains the main analysis, Pandas and Polars comparison, visualizations, and machine learning experiment. `preprocess.py` converts the original JSONL data into Parquet and creates the text sample used for machine learning.
 
-The `tests` folder contains the six unit tests and one integration test used to check the main analysis workflow. The GitHub Actions workflow in `.github/workflows/tests.yml` automatically runs those tests whenever changes are pushed to the repository.
+The `tests` folder contains seven unit tests and one integration test used to check the main analysis workflow. The GitHub Actions workflow in `.github/workflows/tests.yml` automatically runs those tests whenever changes are pushed to the repository.
 
 The `figures` folder contains the generated plots, and `notebooks/rust_vs_python_intro.ipynb` contains the Rust exercises from the previous part of the project.
