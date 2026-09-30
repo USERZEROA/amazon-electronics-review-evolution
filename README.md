@@ -55,6 +55,8 @@ For basic inspection, I used a 200,000-row subset with Pandas and ran `head()`, 
 
 I also checked the valid rating range on the complete dataset. The Amazon Reviews'23 documentation defines ratings from 1 to 5, but I found two records with a rating of 0. These two records were removed before the main analysis.
 
+I inspected extreme values in review length and helpful votes as well. I did not automatically remove large values because very long reviews and reviews with many helpful votes can be legitimate observations. The analysis therefore treats them as valid unless there is evidence that the record itself is invalid.
+
 ## Filtering and Grouping
 
 For the longer-term comparison, I filtered the data to reviews from 2018 through 2022 and grouped them by year. For each year, I calculated review count, average rating, positive-review rate, verified-purchase rate, average review length, average helpful votes, unique reviewers, and unique products.
@@ -129,9 +131,39 @@ The current test suite contains eight tests. Seven are unit tests for individual
 
 ## Continuous Integration
 
-GitHub Actions automatically runs the full test suite on every push and pull request. The workflow creates a clean Python environment, installs the dependencies from `requirements.txt`, and runs the complete pytest suite.
+GitHub Actions automatically runs the project checks on every push and pull request. The workflow tests the project with both Python 3.11 and Python 3.13 using a matrix strategy.
+
+Each CI job checks formatting with Black, runs flake8 for linting, and then runs the complete pytest suite. The workflow can also be started manually and is scheduled to run once a week.
 
 The workflow is stored in `.github/workflows/tests.yml`. The CI status badge at the top of this README shows the current result of the GitHub Actions workflow.
+
+## Docker
+
+The project can also be run in a Docker container so that the test environment is reproducible without depending on the local Python setup.
+
+Build the image with:
+
+```bash
+docker build -t amazon-review-analysis .
+```
+
+Run the container with:
+
+```bash
+docker run --rm amazon-review-analysis
+```
+
+The image uses Python 3.13 on Linux, installs the project dependencies, and runs the complete pytest suite by default. The current Docker image successfully runs all eight tests.
+
+The large Amazon review files are intentionally excluded from the Docker image because the raw and processed datasets are several gigabytes. The container instead uses the small synthetic datasets in the test suite to verify the main analysis workflow.
+
+### Docker Build
+
+<img src="docs/screenshots/docker-build.png" width="800">
+
+### Docker Run
+
+<img src="docs/screenshots/docker-run.png" width="800">
 
 ## Limitations
 
@@ -152,6 +184,10 @@ amazon-electronics-review-evolution/
 │   ├── raw/
 │   ├── processed/
 │   └── README.md
+├── docs/
+│   └── screenshots/
+│       ├── docker-build.png
+│       └── docker-run.png
 ├── figures/
 │   ├── confusion_matrix.png
 │   ├── monthly_review_length.png
@@ -163,7 +199,10 @@ amazon-electronics-review-evolution/
 │   ├── test_analysis.py
 │   ├── test_ml.py
 │   └── test_system.py
+├── .dockerignore
+├── .flake8
 ├── .gitignore
+├── Dockerfile
 ├── analysis.py
 ├── preprocess.py
 ├── README.md
@@ -174,6 +213,8 @@ The large files inside `data/raw` and `data/processed` are stored locally and ex
 
 `analysis.py` contains the main analysis, Pandas and Polars comparison, visualizations, and machine learning experiment. `preprocess.py` converts the original JSONL data into Parquet and creates the text sample used for machine learning.
 
-The `tests` folder contains seven unit tests and one integration test used to check the main analysis workflow. The GitHub Actions workflow in `.github/workflows/tests.yml` automatically runs those tests whenever changes are pushed to the repository.
+The `tests` folder contains seven unit tests and one integration test. The GitHub Actions workflow runs Black, flake8, and pytest against Python 3.11 and Python 3.13.
 
-The `figures` folder contains the generated plots, and `notebooks/rust_vs_python_intro.ipynb` contains the Rust exercises from the previous part of the project.
+The `Dockerfile` provides a reproducible Linux environment for running the test suite, while `.dockerignore` keeps the large datasets and unnecessary local files out of the image.
+
+The `figures` folder contains the generated analysis plots, and `notebooks/rust_vs_python_intro.ipynb` contains the Rust exercises from the previous part of the project.
