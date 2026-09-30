@@ -33,7 +33,7 @@ FIGURES_DIR = ROOT / "figures"
 
 
 # ============================================================
-# 2. Functions for Cleaning and Feature Engineering
+# 2. Cleaning and Feature Engineering
 # ============================================================
 
 
@@ -52,7 +52,7 @@ def add_features(df):
 
 
 # ============================================================
-# 3. Functions for Filtering and Grouping
+# 3. Filtering and Grouping
 # ============================================================
 
 
@@ -115,7 +115,7 @@ def get_verified_comparison(
 
 
 # ============================================================
-# 4. Machine Learning Function
+# 4. Machine Learning
 # ============================================================
 
 
@@ -127,11 +127,9 @@ def run_sentiment_model(
     min_df=5,
 ):
     ml_df = ml_df.dropna(subset=["text"])
-
     ml_df = ml_df[ml_df["text"].str.strip() != ""]
 
     X = ml_df["text"]
-
     y = ml_df["is_positive"].astype(int)
 
     X_train, X_test, y_train, y_test = train_test_split(
@@ -148,7 +146,6 @@ def run_sentiment_model(
     )
 
     X_train_tfidf = vectorizer.fit_transform(X_train)
-
     X_test_tfidf = vectorizer.transform(X_test)
 
     model = LogisticRegression(
@@ -179,26 +176,11 @@ def run_sentiment_model(
 
 
 # ============================================================
-# 5. Main Analysis
+# 5. Dataset Inspection
 # ============================================================
 
 
-def main():
-    # ========================================================
-    # 1. Dataset Import
-    # ========================================================
-
-    FIGURES_DIR.mkdir(exist_ok=True)
-
-    reviews_lf = pl.scan_parquet(REVIEWS_PATH)
-
-    print("Dataset loaded with Polars LazyFrame.")
-    print(reviews_lf.collect_schema())
-
-    # ========================================================
-    # 2. Data Inspection
-    # ========================================================
-
+def inspect_dataset(reviews_lf, inspection_rows=200_000):
     print("\n=== Full Dataset Overview ===")
 
     overview = reviews_lf.select(
@@ -225,9 +207,7 @@ def main():
     print("\n=== Invalid Ratings ===")
     print(invalid_ratings)
 
-    pandas_inspection_rows = 200_000
-
-    pandas_sample = reviews_lf.head(pandas_inspection_rows).collect().to_pandas()
+    pandas_sample = reviews_lf.head(inspection_rows).collect().to_pandas()
 
     print("\n=== First Five Rows ===")
     print(pandas_sample.head())
@@ -244,72 +224,17 @@ def main():
     print("\n=== Duplicate-Looking Rows ===")
     print(pandas_sample.duplicated().sum())
 
-    # ========================================================
-    # 3. Data Cleaning and Feature Engineering
-    # ========================================================
 
-    reviews = clean_ratings(reviews_lf)
-    reviews = add_features(reviews)
+# ============================================================
+# 6. Pandas and Polars Benchmark
+# ============================================================
 
-    # ========================================================
-    # 4. Filtering and Grouping
-    # ========================================================
 
-    # Use complete years for the longer-term comparison.
-    yearly_summary = get_yearly_summary(
-        reviews,
-        start_year=2018,
-        end_year=2022,
-    )
-
-    print("\n=== Yearly Summary: 2018-2022 ===")
-
-    print(yearly_summary.to_pandas().to_string(index=False))
-
-    # Focus on Jan 2022 through Mar 2023.
-    monthly_focus = get_monthly_summary(
-        reviews,
-        start_month="2022-01",
-        end_month="2023-03",
-    )
-
-    print("\n=== Monthly Summary: Jan 2022 - Mar 2023 ===")
-
-    print(monthly_focus.to_pandas().to_string(index=False))
-
-    # Check the 2023 monthly counts because later months
-    # contain far fewer reviews.
-    coverage_2023 = (
-        reviews.filter(pl.col("year") == 2023)
-        .group_by("month")
-        .agg(pl.len().alias("review_count"))
-        .sort("month")
-        .collect()
-    )
-
-    print("\n=== 2023 Review Coverage Check ===")
-
-    print(coverage_2023.to_pandas().to_string(index=False))
-
-    # Compare review length for verified and non-verified reviews.
-    verified_comparison = get_verified_comparison(
-        reviews,
-        start_month="2022-01",
-        end_month="2023-03",
-    )
-
-    print("\n=== Verified vs. Non-Verified Reviews ===")
-
-    verified_table = verified_comparison.to_pandas()
-
-    print(verified_table.to_string(index=False))
-
-    # ========================================================
-    # 5. Pandas vs. Polars
-    # ========================================================
-
-    benchmark_rows = 5_000_000
-
+def benchmark_pandas_vs_polars(
+    reviews,
+    benchmark_rows=5_000_000,
+    repeats=5,
+):
     benchmark_pl = (
         reviews.select(
             "year",
@@ -322,7 +247,7 @@ def main():
 
     benchmark_pd = benchmark_pl.to_pandas()
 
-    # Warm-up run
+    # Warm-up runs before timing.
     benchmark_pd.groupby("year").agg(
         review_count=("rating", "size"),
         avg_rating=("rating", "mean"),
@@ -338,18 +263,16 @@ def main():
     pandas_times = []
     polars_times = []
 
-    for _ in range(5):
+    for _ in range(repeats):
         start = time.perf_counter()
 
-        (
-            benchmark_pd.groupby("year").agg(
-                review_count=("rating", "size"),
-                avg_rating=("rating", "mean"),
-                verified_purchase_rate=(
-                    "verified_purchase",
-                    "mean",
-                ),
-            )
+        benchmark_pd.groupby("year").agg(
+            review_count=("rating", "size"),
+            avg_rating=("rating", "mean"),
+            verified_purchase_rate=(
+                "verified_purchase",
+                "mean",
+            ),
         )
 
         pandas_times.append(time.perf_counter() - start)
@@ -368,24 +291,22 @@ def main():
 
         polars_times.append(time.perf_counter() - start)
 
-    pandas_time = median(pandas_times)
-    polars_time = median(polars_times)
+    return median(pandas_times), median(polars_times)
 
-    print("\n=== Pandas vs. Polars: 5 Million Rows ===")
 
-    print(f"Pandas median runtime: {pandas_time:.4f} seconds")
+# ============================================================
+# 7. Visualizations
+# ============================================================
 
-    print(f"Polars median runtime: {polars_time:.4f} seconds")
 
-    # ========================================================
-    # 6. Visualization
-    # ========================================================
-
+def create_review_figures(
+    yearly_summary,
+    monthly_focus,
+    verified_comparison,
+):
     monthly_pd = monthly_focus.to_pandas()
-
     monthly_pd["month"] = pd.to_datetime(monthly_pd["month"])
 
-    # Monthly review length around late 2022.
     plt.figure(figsize=(10, 5))
 
     plt.plot(
@@ -413,7 +334,6 @@ def main():
 
     plt.show()
 
-    # Longer-term yearly trend.
     yearly_pd = yearly_summary.to_pandas()
 
     plt.figure(figsize=(8, 5))
@@ -438,9 +358,7 @@ def main():
 
     plt.show()
 
-    # Compare verified and non-verified review length.
-    verified_plot = verified_table.copy()
-
+    verified_plot = verified_comparison.to_pandas()
     verified_plot["month"] = pd.to_datetime(verified_plot["month"])
 
     verified_reviews = verified_plot[verified_plot["verified_purchase"]]
@@ -478,10 +396,13 @@ def main():
 
     plt.show()
 
-    # ========================================================
-    # 7. Machine Learning Exploration
-    # ========================================================
 
+# ============================================================
+# 8. Machine Learning Experiment
+# ============================================================
+
+
+def run_ml_experiment():
     print("\n=== Machine Learning: Review Sentiment ===")
 
     ml_df = pd.read_parquet(
@@ -504,11 +425,9 @@ def main():
     print("ML rows:", len(ml_df))
 
     print("\nClass counts:")
-
     print(ml_df["is_positive"].value_counts())
 
     print("\nAccuracy:")
-
     print(accuracy)
 
     print("\nClassification Report:")
@@ -528,7 +447,6 @@ def main():
     weights = model.coef_[0]
 
     positive_words = words[weights.argsort()[-10:][::-1]]
-
     negative_words = words[weights.argsort()[:10]]
 
     print("\nWords most associated with positive reviews:")
@@ -556,6 +474,77 @@ def main():
     )
 
     plt.show()
+
+
+# ============================================================
+# 9. Main Analysis
+# ============================================================
+
+
+def main():
+    FIGURES_DIR.mkdir(exist_ok=True)
+
+    reviews_lf = pl.scan_parquet(REVIEWS_PATH)
+
+    print("Dataset loaded with Polars LazyFrame.")
+    print(reviews_lf.collect_schema())
+
+    inspect_dataset(reviews_lf)
+
+    reviews = clean_ratings(reviews_lf)
+    reviews = add_features(reviews)
+
+    yearly_summary = get_yearly_summary(
+        reviews,
+        start_year=2018,
+        end_year=2022,
+    )
+
+    print("\n=== Yearly Summary: 2018-2022 ===")
+    print(yearly_summary.to_pandas().to_string(index=False))
+
+    monthly_focus = get_monthly_summary(
+        reviews,
+        start_month="2022-01",
+        end_month="2023-03",
+    )
+
+    print("\n=== Monthly Summary: Jan 2022 - Mar 2023 ===")
+    print(monthly_focus.to_pandas().to_string(index=False))
+
+    coverage_2023 = (
+        reviews.filter(pl.col("year") == 2023)
+        .group_by("month")
+        .agg(pl.len().alias("review_count"))
+        .sort("month")
+        .collect()
+    )
+
+    print("\n=== 2023 Review Coverage Check ===")
+    print(coverage_2023.to_pandas().to_string(index=False))
+
+    verified_comparison = get_verified_comparison(
+        reviews,
+        start_month="2022-01",
+        end_month="2023-03",
+    )
+
+    print("\n=== Verified vs. Non-Verified Reviews ===")
+    print(verified_comparison.to_pandas().to_string(index=False))
+
+    pandas_time, polars_time = benchmark_pandas_vs_polars(reviews)
+
+    print("\n=== Pandas vs. Polars: 5 Million Rows ===")
+    print(f"Pandas median runtime: {pandas_time:.4f} seconds")
+    print(f"Polars median runtime: {polars_time:.4f} seconds")
+
+    create_review_figures(
+        yearly_summary,
+        monthly_focus,
+        verified_comparison,
+    )
+
+    run_ml_experiment()
 
 
 if __name__ == "__main__":
