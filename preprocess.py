@@ -20,7 +20,6 @@ import pyarrow.compute as pc
 import pyarrow.json as pajson
 import pyarrow.parquet as pq
 
-
 # ============================================================
 # Paths
 # ============================================================
@@ -59,6 +58,7 @@ REVIEW_SCHEMA = pa.schema(
         ("verified_purchase", pa.bool_()),
     ]
 )
+
 
 def preprocess_reviews():
 
@@ -108,12 +108,9 @@ def preprocess_reviews():
                 pa.int32(),
             )
 
-            analysis_table = (
-                table.drop(["text"])
-                .append_column(
-                    "review_length_chars",
-                    review_length_chars,
-                )
+            analysis_table = table.drop(["text"]).append_column(
+                "review_length_chars",
+                review_length_chars,
             )
 
             if analysis_writer is None:
@@ -132,32 +129,20 @@ def preprocess_reviews():
             # ML text sample
             # ------------------------------------------------
 
-            ratings = table["rating"].to_numpy(
-                zero_copy_only=False
-            )
+            ratings = table["rating"].to_numpy(zero_copy_only=False)
 
             # ML target:
             # 1–2 stars = negative
             # 4–5 stars = positive
             # 3 stars   = excluded
-            non_neutral = (
-                (ratings <= 2.0)
-                | (ratings >= 4.0)
-            )
+            non_neutral = (ratings <= 2.0) | (ratings >= 4.0)
 
-            random_sample = (
-                rng.random(table.num_rows)
-                < ML_SAMPLE_RATE
-            )
+            random_sample = rng.random(table.num_rows) < ML_SAMPLE_RATE
 
-            selected = np.flatnonzero(
-                non_neutral & random_sample
-            )
+            selected = np.flatnonzero(non_neutral & random_sample)
 
             if len(selected) > 0:
-                ml_table = table.take(
-                    pa.array(selected)
-                ).select(
+                ml_table = table.take(pa.array(selected)).select(
                     [
                         "rating",
                         "text",
@@ -196,8 +181,7 @@ def preprocess_reviews():
 
             if rows_processed >= next_progress:
                 print(
-                    f"Processed {rows_processed:,} reviews "
-                    f"| ML sample: {ml_rows:,}"
+                    f"Processed {rows_processed:,} reviews " f"| ML sample: {ml_rows:,}"
                 )
 
                 while next_progress <= rows_processed:
