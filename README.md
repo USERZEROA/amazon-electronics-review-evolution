@@ -137,6 +137,29 @@ Each CI job checks formatting with Black, runs flake8 for linting, and then runs
 
 The workflow is stored in `.github/workflows/tests.yml`. The CI status badge at the top of this README shows the current result of the GitHub Actions workflow.
 
+## Refactoring and Code Quality
+
+I refactored `analysis.py` to make the main workflow easier to read and maintain. The earlier version placed dataset inspection, benchmarking, visualization, and machine learning output directly inside one large `main()` function.
+
+The refactored version separates these responsibilities into focused functions, including:
+
+- `inspect_dataset()`
+- `benchmark_pandas_vs_polars()`
+- `create_review_figures()`
+- `run_ml_experiment()`
+
+This keeps `main()` focused on coordinating the overall workflow instead of containing the implementation details for every step. The benchmark code was also moved into its own function with configurable `benchmark_rows` and `repeats` parameters.
+
+The refactoring was checked with Black and flake8. I then reran all eight pytest tests and the complete analysis. The tests still passed, and the main analysis results, including the sentiment-model accuracy of about 91.4%, remained unchanged.
+
+### Main Workflow Refactoring
+
+<img src="docs/screenshots/refactoring-main-diff.png" width="800">
+
+### Benchmark Refactoring
+
+<img src="docs/screenshots/refactoring-benchmark-diff.png" width="800">
+
 ## Docker
 
 The project can also be run in a Docker container so that the test environment is reproducible without depending on the local Python setup.
@@ -187,7 +210,9 @@ amazon-electronics-review-evolution/
 ├── docs/
 │   └── screenshots/
 │       ├── docker-build.png
-│       └── docker-run.png
+│       ├── docker-run.png
+│       ├── refactoring-main-diff.png
+│       └── refactoring-benchmark-diff.png
 ├── figures/
 │   ├── confusion_matrix.png
 │   ├── monthly_review_length.png
@@ -211,7 +236,9 @@ amazon-electronics-review-evolution/
 
 The large files inside `data/raw` and `data/processed` are stored locally and excluded from Git through `.gitignore`.
 
-`analysis.py` contains the main analysis, Pandas and Polars comparison, visualizations, and machine learning experiment. `preprocess.py` converts the original JSONL data into Parquet and creates the text sample used for machine learning.
+`analysis.py` contains the main analysis workflow, Pandas and Polars comparison, visualizations, and machine learning experiment. The workflow has been refactored into smaller functions so the major steps can be understood and maintained independently.
+
+`preprocess.py` converts the original JSONL data into Parquet and creates the text sample used for machine learning.
 
 The `tests` folder contains seven unit tests and one integration test. The GitHub Actions workflow runs Black, flake8, and pytest against Python 3.11 and Python 3.13.
 
