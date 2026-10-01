@@ -4,68 +4,61 @@
 
 ## Project Goal
 
-This project explores how Amazon Electronics reviews changed over time, with a closer look at the period around late 2022 when generative AI started becoming widely available. I was mainly interested in whether there was a noticeable change in review length around this period and whether other factors in the data could help explain the pattern.
+This project looks at how Amazon Electronics reviews changed over time, with a closer look at late 2022 when generative AI started becoming widely available.
 
-The project is exploratory. I am not trying to show that generative AI caused a change in Amazon reviews. I use the timing only as a point of comparison and then look at what the data actually shows. I also use both Pandas and Polars for part of the analysis and experiment with a simple machine learning model for review sentiment.
+I was mainly interested in review length. I also checked whether changes in verified purchase status could help explain the pattern. The project is exploratory. I am not trying to show that generative AI caused changes in Amazon reviews.
 
 ## Dataset
 
-The data comes from the Amazon Reviews'23 dataset collected by the McAuley Lab at UCSD. I used the Electronics category. My downloaded review file contains 43,886,944 reviews from 18,286,191 users and 1,609,860 products. The review timestamps range from November 1996 to September 2023.
+The data comes from the Amazon Reviews'23 dataset from the McAuley Lab at UCSD. I used the Electronics category.
 
-The original Electronics review file is a compressed JSONL file of about 6.5 GB. Because the raw data and the processed Parquet files are too large for this repository, they are excluded with `.gitignore`. To reproduce the project, the Electronics review file from Amazon Reviews'23 should be placed at:
+My downloaded review file contains 43,886,944 reviews from 18,286,191 users and 1,609,860 products. The timestamps range from November 1996 to September 2023.
+
+The original review file is about 6.5 GB, so the raw and processed data files are not stored in this repository. To reproduce the project, place the Electronics review file at:
 
 `data/raw/Electronics.jsonl.gz`
 
-The main dataset source is **Amazon Reviews'23, McAuley Lab, UCSD**. I also referred to the accompanying dataset paper, **Hou et al., "Bridging Language and Items for Retrieval and Recommendation: Benchmarking LLMs as Semantic Encoders," arXiv:2403.03952**, for information about how the dataset was collected.
+I also referred to the Amazon Reviews'23 dataset paper for information about the collection process and the limitations near the end of the dataset.
 
 ## Setup
 
-The project uses Python 3.11 or newer. On Windows, create and activate a virtual environment with:
+The project uses Python 3.11 or newer.
+
+On Windows:
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\activate
-```
-
-Install the dependencies with:
-
-```powershell
 pip install -r requirements.txt
 ```
 
-The raw review data needs to be converted to Parquet before running the main analysis. Run:
+Preprocess the raw review file:
 
 ```powershell
 python preprocess.py
 ```
 
-After preprocessing finishes, run:
+Run the analysis:
 
 ```powershell
 python analysis.py
 ```
 
-The analysis script prints the main statistics and model results to the terminal and saves the plots in the `figures` folder.
+The preprocessing script converts the large JSONL file to Parquet and creates a reproducible text sample for the machine learning experiment. The analysis script prints the main results and saves plots in the `figures` folder.
 
-## Data Preparation and Inspection
+## Data Preparation
 
-The original review data is stored as compressed JSONL. Since the full dataset contains almost 44 million reviews, I did not load the entire raw file into Pandas at once. Instead, `preprocess.py` reads the file in batches and writes the selected fields to Parquet. The full analysis file keeps information such as rating, product ID, user ID, timestamp, helpful votes, verified-purchase status, and review length. A separate reproducible sample keeps the original review text for the machine learning experiment.
+The full raw file is too large to load into Pandas at once, so `preprocess.py` reads it in batches with PyArrow and writes the selected fields to Parquet.
 
-For basic inspection, I used a 200,000-row subset with Pandas and ran `head()`, `info()`, and `describe()`. I also checked missing values and duplicate-looking rows. The inspection sample did not contain missing values in the selected columns. It contained 146 duplicate-looking rows, but I did not automatically remove them because the processed table does not include every field from the original review, such as the review title and full review text.
+For inspection, I used a 200,000 row sample with Pandas and checked `head()`, `info()`, `describe()`, missing values, and duplicate looking rows. There were no missing values in the selected columns of that sample.
 
-I also checked the valid rating range on the complete dataset. The Amazon Reviews'23 documentation defines ratings from 1 to 5, but I found two records with a rating of 0. These two records were removed before the main analysis.
+The documented rating range is 1 to 5, but the full dataset contained two records with a rating of 0. I removed those two records before the main analysis.
 
-I inspected extreme values in review length and helpful votes as well. I did not automatically remove large values because very long reviews and reviews with many helpful votes can be legitimate observations. The analysis therefore treats them as valid unless there is evidence that the record itself is invalid.
+I also inspected large values in review length and helpful votes. I did not automatically remove them because a long review or a review with many helpful votes can still be a valid observation.
 
-## Filtering and Grouping
+## Analysis and Findings
 
-For the longer-term comparison, I filtered the data to reviews from 2018 through 2022 and grouped them by year. For each year, I calculated review count, average rating, positive-review rate, verified-purchase rate, average review length, average helpful votes, unique reviewers, and unique products.
-
-I then looked more closely at January 2022 through March 2023 by grouping the data by month. I originally planned to use all of 2023, but the number of available reviews drops sharply after March. The dataset paper explains that the data was collected through a user-centered sampling process and that recently posted reviews may be missing near the dataset cutoff. Because of this, I did not treat later 2023 as a complete period for the main comparison.
-
-## Review Length Results
-
-Average review length was fairly stable from 2018 through 2021 and then increased noticeably in 2022.
+For the longer term comparison, I grouped reviews from 2018 through 2022 by year. Average review length stayed fairly stable through 2021 and increased in 2022.
 
 | Year | Average Review Length |
 | --- | ---: |
@@ -77,80 +70,82 @@ Average review length was fairly stable from 2018 through 2021 and then increase
 
 ![Average review length by year](figures/review_length_by_year.png)
 
-Looking month by month shows more detail. Average review length was about 211 characters in January 2022, rose gradually during the year, reached about 250 characters in October, and peaked at about 271 characters in November. It then remained around the mid-240s to low-250s through March 2023.
+I then looked at January 2022 through March 2023 month by month. Average review length was about 211 characters in January 2022 and reached about 271 characters in November.
 
 ![Monthly review length](figures/monthly_review_length.png)
 
-The timing is important. The increase was already underway before the end of November 2022, so the data does not support a simple explanation that reviews suddenly became longer only after generative AI became widely available.
+The increase had already started before the end of November 2022. Because of that, the data does not support a simple explanation that reviews suddenly became longer only after generative AI became widely available.
 
-## Verified and Non-Verified Reviews
+I also noticed that the share of verified purchase reviews changed during the same period. It was about 95% in January 2022 and about 84% in November.
 
-While looking at the monthly results, I noticed that the percentage of verified-purchase reviews was also changing. In January 2022, about 95% of the reviews were verified purchases. By November 2022, the rate had fallen to about 84%.
-
-The two groups also had very different review lengths. In January, verified reviews averaged about 200 characters while non-verified reviews averaged about 414 characters. In November, the averages were about 218 and 552 characters respectively.
+Non verified reviews were much longer on average, but review length also increased inside both groups.
 
 ![Review length by verified purchase status](figures/verified_review_length.png)
 
-This suggests that part of the increase in overall review length came from a change in the mix of verified and non-verified reviews. However, the average length also increased within both groups. Verified reviews increased from about 200 to 218 characters between January and November, while non-verified reviews increased from about 414 to 552 characters. The overall increase therefore cannot be explained only by the changing proportion of the two groups.
+This means the changing mix of verified and non verified reviews explains part of the overall pattern, but not all of it.
 
-## Pandas and Polars
+I did not use the later months of 2023 for the main comparison because review counts fall sharply after March. The dataset paper notes that recently posted reviews may be missing near the dataset cutoff.
 
-I used Polars LazyFrame for the full dataset because it allowed me to work with the large Parquet file without immediately loading every row into memory. I also compared Pandas and Polars on the same group-by operation using 5 million rows.
+## Machine Learning
 
-To make the timing less dependent on a single run, I first ran a warm-up and then timed each implementation five times. On my machine, Pandas took about 0.09 to 0.10 seconds and Polars about 0.03 seconds for this operation.
+I used review text to predict whether a review was positive or negative.
 
-Polars was faster in this particular test, although this is only one operation on one machine and should not be interpreted as showing that Polars is always faster than Pandas.
+Reviews with 1 or 2 stars were treated as negative. Reviews with 4 or 5 stars were treated as positive. Three star reviews were excluded.
 
-## Machine Learning Exploration
+The model uses TF-IDF features and Logistic Regression. The data was split into 80% training and 20% testing, with balanced class weights because the sample contains many more positive reviews.
 
-For the machine learning part, I used review text to predict whether a review was positive or negative. Reviews with 1 or 2 stars were treated as negative, reviews with 4 or 5 stars were treated as positive, and 3-star reviews were excluded. After removing empty review text, the machine learning sample contained 204,324 reviews.
-
-I used TF-IDF to turn the review text into numeric features and Logistic Regression for classification. The data was split into 80% training and 20% testing. Because there were many more positive reviews than negative reviews, I used balanced class weights when training the model.
-
-The model reached about 91.4% accuracy on the test set. For negative reviews, precision was 0.71, recall was 0.92, and F1 was 0.80. For positive reviews, precision was 0.98, recall was 0.91, and F1 was 0.95.
+After removing empty text, the sample contained 204,324 reviews. The model reached about 91.4% test accuracy.
 
 ![Confusion matrix](figures/confusion_matrix.png)
 
-The model also gives a simple way to see what it learned from the text. Some of the words with the strongest positive weights were `great`, `love`, `perfect`, `amazing`, `easy`, and `excellent`. Some of the strongest negative words were `not`, `useless`, `poor`, `waste`, `terrible`, and `disappointed`. These words were not manually labeled as positive or negative. The model learned their relationships with the star-rating labels from the training data.
+Some of the strongest positive terms included `great`, `love`, `perfect`, `amazing`, and `excellent`. Strong negative terms included `not`, `useless`, `poor`, `waste`, and `terrible`.
 
-## Testing
+## Pandas and Polars
 
-The project includes automated tests for the main data analysis workflow. The tests cover rating cleaning, feature engineering, yearly and monthly aggregation, verified and non-verified review comparison, machine learning training and prediction, and an empty-result edge case.
+The full analysis uses Polars LazyFrame because the processed dataset is large.
 
-The machine learning unit test uses a small labeled text dataset to check the TF-IDF and Logistic Regression workflow, including model training, prediction, and evaluation.
+I also ran the same group by operation on 5 million rows with both Pandas and Polars. After a warm up, I timed each version five times and compared the median runtime.
 
-A small integration test also checks the main analysis pipeline from reading a Parquet file through data cleaning, feature creation, and aggregation. The tests use small synthetic datasets instead of the full Amazon Reviews dataset, so they can run quickly without requiring the large local data files.
+On my machine, Pandas took about 0.09 to 0.10 seconds and Polars about 0.03 seconds for this operation. This only describes this specific benchmark and should not be treated as a general claim that Polars is always faster.
 
-To run the tests locally:
+## Key Takeaways
+
+Amazon Electronics reviews became noticeably longer during 2022, but the increase started before the public release of ChatGPT.
+
+Part of the change happened while the proportion of verified purchase reviews was falling. However, review length also increased within both verified and non verified reviews.
+
+The project also showed that the same analysis workflow can be tested on small synthetic data, checked automatically in CI, and reproduced inside a Docker container without including the multi gigabyte Amazon dataset.
+
+## Testing and Continuous Integration
+
+The project contains eight automated tests. Seven are unit tests and one is an integration test.
+
+The tests cover rating cleaning, feature creation, yearly and monthly aggregation, verified purchase comparisons, the machine learning workflow, an empty result edge case, and a small end to end Parquet analysis pipeline.
+
+Run them locally with:
 
 ```bash
 python -m pytest -v
 ```
 
-The current test suite contains eight tests. Seven are unit tests for individual parts of the analysis, including the machine learning workflow, and one is an integration test for the main data-processing workflow.
+GitHub Actions runs the checks on every push and pull request. It also supports manual runs and a weekly scheduled run.
 
-## Continuous Integration
-
-GitHub Actions automatically runs the project checks on every push and pull request. The workflow tests the project with both Python 3.11 and Python 3.13 using a matrix strategy.
-
-Each CI job checks formatting with Black, runs flake8 for linting, and then runs the complete pytest suite. The workflow can also be started manually and is scheduled to run once a week.
-
-The workflow is stored in `.github/workflows/tests.yml`. The CI status badge at the top of this README shows the current result of the GitHub Actions workflow.
+The workflow tests Python 3.11 and Python 3.13. Each job runs Black, flake8, and pytest.
 
 ## Refactoring and Code Quality
 
-I refactored `analysis.py` to make the main workflow easier to read and maintain. The earlier version placed dataset inspection, benchmarking, visualization, and machine learning output directly inside one large `main()` function.
+The earlier version of `analysis.py` placed dataset inspection, benchmarking, plotting, and machine learning output inside one large `main()` function.
 
-The refactored version separates these responsibilities into focused functions, including:
+I split these parts into focused functions:
 
 - `inspect_dataset()`
 - `benchmark_pandas_vs_polars()`
 - `create_review_figures()`
 - `run_ml_experiment()`
 
-This keeps `main()` focused on coordinating the overall workflow instead of containing the implementation details for every step. The benchmark code was also moved into its own function with configurable `benchmark_rows` and `repeats` parameters.
+This made `main()` easier to read and made the benchmark settings reusable instead of leaving them inside one large block.
 
-The refactoring was checked with Black and flake8. I then reran all eight pytest tests and the complete analysis. The tests still passed, and the main analysis results, including the sentiment-model accuracy of about 91.4%, remained unchanged.
+After the refactor, I ran Black and flake8, reran all eight tests, and ran the complete analysis again. The analysis results and the sentiment model accuracy remained unchanged.
 
 ### Main Workflow Refactoring
 
@@ -162,7 +157,7 @@ The refactoring was checked with Black and flake8. I then reran all eight pytest
 
 ## Docker
 
-The project can also be run in a Docker container so that the test environment is reproducible without depending on the local Python setup.
+The project also includes a Dockerfile so the test environment can be reproduced without depending on my local Python setup.
 
 Build the image with:
 
@@ -170,15 +165,15 @@ Build the image with:
 docker build -t amazon-review-analysis .
 ```
 
-Run the container with:
+Run it with:
 
 ```bash
 docker run --rm amazon-review-analysis
 ```
 
-The image uses Python 3.13 on Linux, installs the project dependencies, and runs the complete pytest suite by default. The current Docker image successfully runs all eight tests.
+The container uses Python 3.13 on Linux and runs the complete pytest suite. All eight tests pass inside the container.
 
-The large Amazon review files are intentionally excluded from the Docker image because the raw and processed datasets are several gigabytes. The container instead uses the small synthetic datasets in the test suite to verify the main analysis workflow.
+The large Amazon data files are intentionally kept outside the image. This helped separate the reproducible test environment from the multi gigabyte dataset. The container can still verify the analysis logic using the small synthetic test data.
 
 ### Docker Build
 
@@ -190,11 +185,11 @@ The large Amazon review files are intentionally excluded from the Docker image b
 
 ## Limitations
 
-The main limitation is that this analysis cannot determine whether generative AI caused any of the changes in review behavior. Review length had already started increasing before the end of November 2022, and several other things in the data were changing at the same time, including the proportion of verified purchases.
+This project cannot determine whether generative AI caused the changes in review behavior. Several patterns were changing at the same time, and review length had already started increasing before the end of November 2022.
 
-The dataset itself also has a coverage limitation. The Amazon Reviews'23 authors explain that users were sampled first and their review histories were then collected. This means coverage for an individual product may be incomplete if some reviewers were not part of the sampled user pool. They also note that recently posted reviews may be missing near the dataset cutoff. In my Electronics data, monthly review counts begin dropping sharply after March 2023, so I did not use those later months for the main trend comparison.
+The dataset also has coverage limitations near its cutoff. Review counts fall sharply after March 2023, so I did not use the later months for the main trend comparison.
 
-Finally, review length is a very simple text measure. A longer review does not mean that it was written by AI, that it is higher quality, or that it is more useful. The results only show changes in observable review patterns around this period.
+Review length is also a simple measure. A longer review does not mean that it was written by AI or that it is better quality.
 
 ## Repository Structure
 
@@ -233,15 +228,3 @@ amazon-electronics-review-evolution/
 ├── README.md
 └── requirements.txt
 ```
-
-The large files inside `data/raw` and `data/processed` are stored locally and excluded from Git through `.gitignore`.
-
-`analysis.py` contains the main analysis workflow, Pandas and Polars comparison, visualizations, and machine learning experiment. The workflow has been refactored into smaller functions so the major steps can be understood and maintained independently.
-
-`preprocess.py` converts the original JSONL data into Parquet and creates the text sample used for machine learning.
-
-The `tests` folder contains seven unit tests and one integration test. The GitHub Actions workflow runs Black, flake8, and pytest against Python 3.11 and Python 3.13.
-
-The `Dockerfile` provides a reproducible Linux environment for running the test suite, while `.dockerignore` keeps the large datasets and unnecessary local files out of the image.
-
-The `figures` folder contains the generated analysis plots, and `notebooks/rust_vs_python_intro.ipynb` contains the Rust exercises from the previous part of the project.
