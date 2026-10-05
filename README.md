@@ -1,5 +1,7 @@
 # Amazon Electronics Review Trends Around the Rise of Generative AI
 
+*Refactor before the code starts fighting back.*
+
 [![Tests](https://github.com/USERZEROA/amazon-electronics-review-evolution/actions/workflows/tests.yml/badge.svg)](https://github.com/USERZEROA/amazon-electronics-review-evolution/actions/workflows/tests.yml)
 
 ## Project Goal
